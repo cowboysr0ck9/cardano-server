@@ -1,4 +1,4 @@
-import express, { Request, NextFunction, Response } from "express";
+import express from "express";
 import * as morgan from "morgan";
 import * as bodyParser from "body-parser";
 import { MongoClient } from "mongodb";
