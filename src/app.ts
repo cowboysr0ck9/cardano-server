@@ -14,13 +14,10 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use("/api/v1", [...ROUTES]);
 
 async function main() {
-  /**
-   * Connection URI. Update <username>, <password>, and <your-cluster-url> to reflect your cluster.
-   * See https://docs.mongodb.com/ecosystem/drivers/node/ for more details
-   */
-  const srv =
-    "mongodb+srv://cowboysr0ck9:Password%2329@cluster0.vysbq.mongodb.net";
-
+  const srv = `${process.env.MONGODB_SRV_URI}` || "";
+  if (!srv) {
+    throw Error("The MongoDb connection string cannot be left empty");
+  }
   const mongodb = new MongoClient(srv, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
