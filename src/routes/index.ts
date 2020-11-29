@@ -1,3 +1,3 @@
-import { user, firm } from "./firm";
+import { firmRoutes } from "./firm";
 
-export const ROUTES = [user, firm];
+export const ROUTES = [...firmRoutes];

@@ -1,11 +1,17 @@
-import express from "express";
-import * as morgan from "morgan";
+import express, { Request, Response } from "express";
+import morgan, { Morgan, TokenIndexer } from "morgan";
 import * as bodyParser from "body-parser";
-import { MongoClient } from "mongodb";
 import { ROUTES } from "./routes";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import * as redisCache from "redis";
+
+dotenv.config();
 
 const app = express();
+
 const PORT = process.env.NODE_ENV || 3000;
+app.use(morgan("tiny"));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -13,32 +19,48 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // load our API routes
 app.use("/api/v1", [...ROUTES]);
 
-async function main() {
-  const srv = `${process.env.MONGODB_SRV_URI}` || "";
-  if (!srv) {
-    throw Error("The MongoDb connection string cannot be left empty");
-  }
-  const mongodb = new MongoClient(srv, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-
-  try {
-    // Connect to the MongoDB cluster
-    await mongodb.connect();
-
-    // Make the appropriate DB calls
-    const databasesList = await mongodb.db().admin().listDatabases();
-
-    console.log("Databases:");
-    databasesList.databases.forEach((db: any) => console.log(` - ${db.name}`));
-  } catch (e) {
-    console.error(e);
-  }
-}
+export const redis = redisCache.createClient({
+  port: Number(process.env.REDIS_PORT),
+  host: process.env.REDIS_HOST,
+  password: process.env.REDIS_PASSWORD,
+});
 
 // establish http server connection
-app.listen(PORT, () => {
-  main().catch(console.error);
-  console.info(`Server running on port ${PORT}`);
+app.listen(PORT, async () => {
+  try {
+    await mongoose.connect(
+      `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_HOST}/${process.env.MONGODB_DB_NAME}?retryWrites=true&w=majority`,
+      {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        useCreateIndex: true,
+      }
+    );
+  } catch (error) {
+    console.error("Failed to connect to database", error);
+  }
+
+  console.info(`Server @ https://localhost:${PORT}/api/v1/`);
+});
+
+mongoose.connection.on("error", (err) => {
+  // TODO: Log via Morgan
+  console.error("Database failed while running.", err);
+});
+
+mongoose.connection.once("open", () => {
+  // TODO: Log a successful connection to the DB
+  console.info("Database Successfully Connected");
+});
+
+redis.on("connect", function () {
+  console.log("Redis Connected");
+});
+
+redis.on("ready", function (err) {
+  console.log("redis ready ");
+});
+
+redis.on("error", function (err) {
+  console.log("redis error" + err);
 });
